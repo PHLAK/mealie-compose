@@ -1,0 +1,59 @@
+services:
+
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:${MEALIE_VERSION:-latest}
+    env_file: environment.d/mealie.env
+    environment:
+      DB_ENGINE: ${DATABASE_ENGINE:-postgres}
+      POSTGRES_SERVER: ${DATABASE_HOST:-database}
+      POSTGRES_PORT: ${DATABASE_PORT:-5432}
+      POSTGRES_DB: ${DATABASE_NAME:-mealie}
+      POSTGRES_USER: ${DATABASE_USER:-mealie}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      SCRAPER_FLARESOLVERR_URL: http://flaresolverr:8191
+    ports:
+      - ${MEALIE_PORT:-9000}:9000
+    volumes:
+      - ${MEALIE_VOLUME:-mealie-data}:/app/data
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      com.centurylinklabs.watchtower.scope: ${COMPOSE_PROJECT_NAME}
+    depends_on: [database, flaresolverr]
+    restart: unless-stopped
+
+  database:
+    image: postgres:${POSTGRESS_IMAGE_VERSION:-18}
+    env_file: environment.d/postgres.env
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-mealie}
+      POSTGRES_USER: ${DATABASE_USER:-mealie}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - ${DATABASE_VOLUME:-postgres-data}:/var/lib/postgresql
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "pg_isready"]
+    labels:
+      com.centurylinklabs.watchtower.scope: ${COMPOSE_PROJECT_NAME}
+    restart: unless-stopped
+
+  flaresolverr:
+      image: ghcr.io/flaresolverr/flaresolverr:latest
+      env_file: environment.d/flaresolverr.env
+      restart: unless-stopped
+
+  watchtower:
+    image: nickfedor/watchtower:${WATCHTOWER_VERSION:-latest}
+    env_file: environment.d/watchtower.env
+    environment:
+      WATCHTOWER_SCOPE: ${COMPOSE_PROJECT_NAME}
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      com.centurylinklabs.watchtower.scope: ${COMPOSE_PROJECT_NAME}
+    restart: unless-stopped
+
+volumes:
+  mealie-data: {}
+  postgres-data: {}
